@@ -1,83 +1,69 @@
 import random
 import string
-import hashlib
-import sqlite3
+import tkinter as tk
+from tkinter import messagebox
 
-conn = sqlite3.connect("passwords.db")
-cursor = conn.cursor()
+def generate_password():
+    username = entry_username.get()
+    favourite = entry_fav.get()
+    
+    try:
+        length = int(entry_length.get())
+    except:
+        messagebox.showerror("Error", "Enter valid length")
+        return
 
-cursor.execute("""
-CREATE TABLE IF NOT EXISTS passwords (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    username TEXT,
-    favourite TEXT,
-    password TEXT
-)
-""")
-conn.commit()
+    if length < 3:
+        messagebox.showerror("Error", "Length should be at least 3")
+        return
 
-used_passwords = set()
+    # Ensure username + favourite are included
+    base = username + favourite
 
-def generate_password(username, favourite, length):
+    # Remaining length
+    remaining_length = length - len(base)
 
-    # Take meaningful parts (NOT too short)
-    user_part = username[:4]
-    fav_part = favourite[:4]
+    if remaining_length < 0:
+        messagebox.showerror("Error", "Length too small for given inputs")
+        return
 
-    # Create hash for uniqueness
-    seed = username + favourite
-    hashed = hashlib.sha256(seed.encode()).hexdigest()
+    characters = string.ascii_letters + string.digits + string.punctuation
 
-    # Character sets
-    letters = string.ascii_letters
-    digits = string.digits
-    symbols = "!@#$%&*"
+    random_part = ''.join(random.choice(characters) for _ in range(remaining_length))
 
-    # Ensure minimum structure
-    base = user_part + fav_part
-    symbol = random.choice(symbols)
-    digit = random.choice(digits)
+    password = list(base + random_part)
+    random.shuffle(password)
 
-    # Remaining characters
-    remaining_length = length - len(base) - 2  # -2 for symbol + digit
+    final_password = ''.join(password)
 
-    if remaining_length < 2:
-        remaining_length = 2  # safety
-
-    random_part = ''.join(random.choice(letters) for _ in range(remaining_length))
-
-    # Final password
-    password = base + symbol + digit + random_part + hashed[:2]
-
-    # Trim ONLY if needed
-    password = password[:length]
-
-    # Ensure uniqueness
-    if password not in used_passwords:
-        used_passwords.add(password)
-        return password
-    else:
-        return generate_password(username, favourite, length)
+    result_label.config(text="Generated Password: " + final_password)
 
 
-# ---------------- MAIN ----------------
-print("🔐 Password Generator")
+# UI Window
+root = tk.Tk()
+root.title("Password Generator")
+root.geometry("400x300")
 
-username = input("Enter username: ")
-favourite = input("Enter favourite thing: ")
-length = int(input("Enter password length (min 8): "))
+# Username
+tk.Label(root, text="Username").pack()
+entry_username = tk.Entry(root)
+entry_username.pack()
 
-if length < 8:
-    length = 8
+# Favourite
+tk.Label(root, text="Favourite Thing").pack()
+entry_fav = tk.Entry(root)
+entry_fav.pack()
 
-password = generate_password(username, favourite, length)
+# Length
+tk.Label(root, text="Password Length").pack()
+entry_length = tk.Entry(root)
+entry_length.pack()
 
-cursor.execute(
-    "INSERT INTO passwords (username, favourite, password) VALUES (?, ?, ?)",
-    (username, favourite, password)
-)
-conn.commit()
+# Button
+tk.Button(root, text="Generate Password", command=generate_password).pack(pady=10)
 
-print("\nGenerated Password:", password)
-print("Length:", len(password))
-print("Saved successfully ✅")
+# Result
+result_label = tk.Label(root, text="")
+result_label.pack()
+
+root.mainloop()
